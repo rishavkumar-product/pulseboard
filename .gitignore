@@ -1,0 +1,10 @@
+.env
+storage/
+pulseboard.db
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
+.DS_Store
