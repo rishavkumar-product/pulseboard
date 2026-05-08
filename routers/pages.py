@@ -38,14 +38,21 @@ def root(request: Request):
 @router.get("/forums", response_class=HTMLResponse)
 def forums_home(request: Request, user=Depends(get_current_user)):
     with db() as conn:
+        meta_sql = """
+            (SELECT COUNT(*) FROM publications p
+             JOIN topics t ON t.id=p.topic_id WHERE t.forum_id=f.id) as pub_count,
+            (SELECT COUNT(*) FROM forum_members fm2 WHERE fm2.forum_id=f.id) as member_count,
+            (SELECT MAX(p2.updated_at) FROM publications p2
+             JOIN topics t2 ON t2.id=p2.topic_id WHERE t2.forum_id=f.id) as last_active
+        """
         if user.get("is_admin"):
             forums = conn.execute(
-                "SELECT f.*, u.username as creator FROM forums f "
+                f"SELECT f.*, u.username as creator, {meta_sql} FROM forums f "
                 "LEFT JOIN users u ON u.id=f.created_by ORDER BY f.display_name"
             ).fetchall()
         else:
             forums = conn.execute(
-                "SELECT f.*, u.username as creator, fm.role FROM forums f "
+                f"SELECT f.*, u.username as creator, fm.role, {meta_sql} FROM forums f "
                 "JOIN forum_members fm ON fm.forum_id=f.id "
                 "LEFT JOIN users u ON u.id=f.created_by "
                 "WHERE fm.user_id=? ORDER BY f.display_name", (user["user_id"],)

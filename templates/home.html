@@ -11,22 +11,49 @@
 </div>
 
 {% if forums %}
-<div class="row g-3">
+<!-- Search bar -->
+<div class="mb-4">
+  <input type="text" id="forum-search" class="form-control form-control-sm"
+         placeholder="Search forums…" oninput="filterForums(this.value)"
+         style="max-width:280px">
+</div>
+
+<div class="row g-3" id="forum-grid">
   {% for f in forums %}
-  <div class="col-md-4">
+  <div class="col-md-4 forum-card-wrapper" data-name="{{ f.display_name|lower }}">
     <a href="/forums/{{ f.slug }}" class="text-decoration-none">
-      <div class="card pub-card h-100" style="cursor:pointer;transition:box-shadow 0.15s,transform 0.15s"
-           onmouseover="this.style.boxShadow='0 4px 16px rgba(0,0,0,0.10)';this.style.transform='translateY(-2px)'"
-           onmouseout="this.style.boxShadow='';this.style.transform=''">
-        <div class="card-body">
-          <h6 class="fw-bold text-dark">{{ f.display_name }}</h6>
-          <p class="text-muted small mb-0">{{ f.description or "No description" }}</p>
+      <div class="card h-100 forum-card"
+           style="cursor:pointer;transition:box-shadow 0.15s,transform 0.15s;border:1px solid #e9ecef"
+           onmouseover="this.style.boxShadow='0 4px 18px rgba(0,0,0,0.10)';this.style.transform='translateY(-2px)';this.style.borderColor='#ced4da'"
+           onmouseout="this.style.boxShadow='';this.style.transform='';this.style.borderColor='#e9ecef'">
+        <div class="card-body pb-2">
+          <div class="d-flex justify-content-between align-items-start">
+            <h6 class="fw-bold text-dark mb-1">{{ f.display_name }}</h6>
+            <i class="bi bi-chevron-right text-muted" style="font-size:0.75rem;margin-top:2px"></i>
+          </div>
+          <p class="text-muted small mb-0" style="font-size:0.82rem">{{ f.description or "No description" }}</p>
+        </div>
+        <div class="card-footer bg-transparent border-0 pt-0 pb-2 px-3">
+          <div class="d-flex gap-3" style="font-size:0.72rem;color:#adb5bd">
+            <span><i class="bi bi-file-earmark me-1"></i>{{ f.pub_count or 0 }} publication{{ 's' if (f.pub_count or 0) != 1 else '' }}</span>
+            <span><i class="bi bi-people me-1"></i>{{ f.member_count or 0 }} member{{ 's' if (f.member_count or 0) != 1 else '' }}</span>
+            {% if f.last_active %}
+            <span class="ms-auto"><i class="bi bi-clock me-1"></i>{{ f.last_active[:10] }}</span>
+            {% endif %}
+          </div>
         </div>
       </div>
     </a>
   </div>
   {% endfor %}
 </div>
+
+<!-- No-results message for search -->
+<div id="no-forum-results" class="text-center text-muted py-5 d-none">
+  <i class="bi bi-search fs-2 d-block mb-2"></i>
+  No forums match your search.
+</div>
+
 {% else %}
 <div class="text-center text-muted py-5">
   <i class="bi bi-inbox fs-1 d-block mb-2"></i>
@@ -76,6 +103,19 @@ async function createForum() {
   const data = await res.json();
   if (res.ok) window.location.href = '/forums/' + data.slug;
   else alert(data.detail || 'Error creating forum');
+}
+
+function filterForums(q) {
+  const term = q.toLowerCase().trim();
+  const cards = document.querySelectorAll('.forum-card-wrapper');
+  let visible = 0;
+  cards.forEach(c => {
+    const match = !term || c.dataset.name.includes(term);
+    c.style.display = match ? '' : 'none';
+    if (match) visible++;
+  });
+  const noRes = document.getElementById('no-forum-results');
+  if (noRes) noRes.classList.toggle('d-none', visible > 0);
 }
 </script>
 {% endblock %}

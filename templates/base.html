@@ -22,16 +22,19 @@
     <ul class="navbar-nav me-auto">
     </ul>
     <ul class="navbar-nav">
-      {% if user.is_admin %}
-      <li class="nav-item">
-        <a class="nav-link" href="/admin"><i class="bi bi-gear"></i> Admin</a>
-      </li>
-      {% endif %}
       <li class="nav-item dropdown">
         <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">
           <i class="bi bi-person-circle"></i> {{ user.username }}
         </a>
         <ul class="dropdown-menu dropdown-menu-end">
+          {% if user.is_admin %}
+          <li>
+            <a class="dropdown-item" href="/admin">
+              <i class="bi bi-gear me-1"></i> Admin panel
+            </a>
+          </li>
+          <li><hr class="dropdown-divider"></li>
+          {% endif %}
           <li>
             <form method="post" action="/auth/logout">
               <button type="submit" class="dropdown-item text-danger">
