@@ -24,24 +24,30 @@
 
     {% if user_role == 'admin' or user.is_admin %}
     <hr>
-    <div class="small fw-semibold text-muted text-uppercase mb-2">Members</div>
-    {% for m in members %}
-    <div class="d-flex justify-content-between align-items-center mb-1 px-1">
-      <span class="small">{{ m.username }} <span class="badge bg-secondary" style="font-size:0.65rem">{{ m.role }}</span></span>
-      {% if user.is_admin or user_role == 'admin' %}
-      <button class="btn btn-sm p-0 text-danger" onclick="removeMember({{ forum.id }}, {{ m.user_id }})" title="Remove">
-        <i class="bi bi-x"></i>
-      </button>
-      {% endif %}
-    </div>
-    {% endfor %}
-    <div class="mt-2">
-      <input type="text" id="add-member-username" class="form-control form-control-sm mb-1" placeholder="Username">
-      <select id="add-member-role" class="form-select form-select-sm mb-1">
-        <option value="member">Member</option>
-        <option value="admin">Admin</option>
-      </select>
-      <button class="btn btn-sm btn-outline-dark w-100" onclick="addMember({{ forum.id }})">Add Member</button>
+    <a href="#" class="small text-muted text-decoration-none d-flex justify-content-between align-items-center"
+       onclick="event.preventDefault(); document.getElementById('members-panel').classList.toggle('d-none')">
+      <span class="fw-semibold text-uppercase" style="letter-spacing:0.05em">Members</span>
+      <span class="badge bg-secondary rounded-pill" style="font-size:0.6rem">{{ members|length }}</span>
+    </a>
+    <div id="members-panel" class="d-none mt-2">
+      {% for m in members %}
+      <div class="d-flex justify-content-between align-items-center mb-1 px-1">
+        <span class="small">{{ m.username }} <span class="badge bg-secondary" style="font-size:0.65rem">{{ m.role }}</span></span>
+        {% if user.is_admin or user_role == 'admin' %}
+        <button class="btn btn-sm p-0 text-danger" onclick="removeMember({{ forum.id }}, {{ m.user_id }})" title="Remove">
+          <i class="bi bi-x"></i>
+        </button>
+        {% endif %}
+      </div>
+      {% endfor %}
+      <div class="mt-2">
+        <input type="text" id="add-member-username" class="form-control form-control-sm mb-1" placeholder="Username">
+        <select id="add-member-role" class="form-select form-select-sm mb-1">
+          <option value="member">Member</option>
+          <option value="admin">Admin</option>
+        </select>
+        <button class="btn btn-sm btn-outline-dark w-100" onclick="addMember({{ forum.id }})">Add Member</button>
+      </div>
     </div>
     {% endif %}
   </div>
