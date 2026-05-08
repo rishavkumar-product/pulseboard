@@ -26,21 +26,21 @@ async def save_upload(pub_id: int, file: UploadFile) -> tuple[str, str]:
     dest = pub_dir(pub_id) / f"output.{file_type}"
     content = await file.read()
     dest.write_bytes(content)
-    return str(dest), file_type
+    return str(dest.resolve()), file_type
 
 
 async def save_script(pub_id: int, file: UploadFile) -> str:
     dest = script_dir(pub_id) / "refresh.py"
     content = await file.read()
     dest.write_bytes(content)
-    return str(dest)
+    return str(dest.resolve())
 
 
 def save_named_script(pub_id: int, filename: str, content: bytes) -> str:
     """Save a script file with its original filename (sync, no UploadFile)."""
     dest = script_dir(pub_id) / filename
     dest.write_bytes(content)
-    return str(dest)
+    return str(dest.resolve())
 
 
 def backup_output(pub_id: int):

@@ -11,10 +11,17 @@
 
 <div class="row g-4">
   <!-- Main viewer -->
-  <div class="col-md-8">
+  <div class="col-md-9">
     <div class="d-flex justify-content-between align-items-start mb-2">
       <div>
-        <h5 class="fw-bold mb-0">{{ pub.title }}</h5>
+        <div class="d-flex align-items-center gap-2">
+          <h5 class="fw-bold mb-0">{{ pub.title }}</h5>
+          <button class="btn btn-link p-0 text-muted" onclick="copyPubLink(this)" title="Copy link"
+                  style="font-size:1rem;line-height:1;text-decoration:none">
+            <i class="bi bi-link-45deg"></i>
+          </button>
+          <span id="copy-toast" class="text-success small d-none" style="font-size:0.72rem">Copied!</span>
+        </div>
         <div class="text-muted small">
           by {{ pub.author }} &middot; published {{ pub.created_at[:10] }}
           {% if pub.last_refreshed_at %}&middot; refreshed {{ pub.last_refreshed_at }}{% endif %}
@@ -108,6 +115,11 @@
     <!-- ── /Script Package Panel ──────────────────────────────────── -->
 
     {% if pub.file_type == 'html' %}
+    <div class="d-flex justify-content-end mb-1">
+      <button class="btn btn-sm btn-outline-secondary py-0 px-2" onclick="openFullscreen()" title="Fullscreen">
+        <i class="bi bi-arrows-fullscreen me-1"></i><span style="font-size:0.75rem">Full screen</span>
+      </button>
+    </div>
     <iframe id="pub-iframe" src="/api/publications/{{ pub.id }}/file" sandbox="allow-scripts allow-same-origin"></iframe>
     {% else %}
     <div class="card mb-3">
@@ -152,12 +164,27 @@
     </div>
     {% endif %}
 
-    <!-- Upload script -->
+    <!-- CTA row: Replace Script + Schedule -->
+    <div class="d-flex gap-3 mt-3 px-1" style="font-size:0.8rem">
+      {% if user_role == 'admin' or pub.created_by == user.user_id %}
+      <a href="#" class="text-muted text-decoration-none"
+         onclick="event.preventDefault(); togglePanel('replace-script-panel', this)"
+         data-label-off="<i class='bi bi-code-slash me-1'></i>Replace script"
+         data-label-on="<i class='bi bi-x me-1'></i>Cancel">
+        <i class="bi bi-code-slash me-1"></i>Replace script
+      </a>
+      {% endif %}
+      <a href="#" class="text-muted text-decoration-none"
+         onclick="event.preventDefault(); togglePanel('schedule-panel', this)"
+         data-label-off="<i class='bi bi-clock me-1'></i>{% if schedule %}Schedule: <code>{{ schedule.cron_expression }}</code>{% else %}Set schedule{% endif %}"
+         data-label-on="<i class='bi bi-x me-1'></i>Cancel">
+        <i class="bi bi-clock me-1"></i>{% if schedule %}<span class="badge {% if schedule.is_active %}bg-success{% else %}bg-secondary{% endif %}" style="font-size:0.65rem">{% if schedule.is_active %}Active{% else %}Paused{% endif %}</span> <code style="font-size:0.75rem">{{ schedule.cron_expression }}</code>{% else %}Set schedule{% endif %}
+      </a>
+    </div>
+
+    <!-- Replace script panel (hidden) -->
     {% if user_role == 'admin' or pub.created_by == user.user_id %}
-    <div class="card mt-3">
-      <div class="card-header small fw-semibold"><i class="bi bi-code-slash me-1"></i>
-        {% if pub.has_script %}Replace{% else %}Attach{% endif %} Refresh Script (.py)
-      </div>
+    <div id="replace-script-panel" class="card mt-2 d-none">
       <div class="card-body py-2">
         <form id="script-upload-form" class="d-flex gap-2 align-items-center">
           <input type="file" name="file" accept=".py" class="form-control form-control-sm" id="script-file-input" required>
@@ -167,19 +194,11 @@
     </div>
     {% endif %}
 
-    <!-- Schedule panel -->
-    <div class="card mt-3">
-      <div class="card-header d-flex justify-content-between align-items-center">
-        <span class="fw-semibold small"><i class="bi bi-clock me-1"></i>Auto-Refresh Schedule</span>
-        {% if schedule %}
-        <span class="badge {% if schedule.is_active %}bg-success{% else %}bg-secondary{% endif %}">
-          {% if schedule.is_active %}Active{% else %}Paused{% endif %}
-        </span>
-        {% endif %}
-      </div>
+    <!-- Schedule panel (hidden) -->
+    <div id="schedule-panel" class="card mt-2 d-none">
       <div class="card-body py-2">
         {% if schedule %}
-        <div class="mb-2 small"><code>{{ schedule.cron_expression }}</code> (UTC)</div>
+        <div class="mb-2 small"><code>{{ schedule.cron_expression }}</code> <span class="text-muted">(UTC)</span></div>
         <div class="d-flex gap-2">
           {% if schedule.is_active %}
           <button class="btn btn-sm btn-outline-warning" onclick="toggleSchedule({{ pub.id }}, false)">Pause</button>
@@ -200,7 +219,7 @@
   </div>
 
   <!-- Comments panel -->
-  <div class="col-md-4">
+  <div class="col-md-3">
     <h6 class="fw-bold mb-3"><i class="bi bi-chat-dots me-1"></i>Comments</h6>
 
     <div class="mb-3">
@@ -246,6 +265,37 @@ async function postComment(pubId) {
     body: JSON.stringify({body})
   });
   window.location.reload();
+}
+
+// ── Copy publication link ─────────────────────────────────────────
+function copyPubLink(btn) {
+  navigator.clipboard.writeText(window.location.href).then(() => {
+    const toast = document.getElementById('copy-toast');
+    toast.classList.remove('d-none');
+    setTimeout(() => toast.classList.add('d-none'), 2000);
+  });
+}
+
+// ── Fullscreen iframe ─────────────────────────────────────────────
+function openFullscreen() {
+  const iframe = document.getElementById('pub-iframe');
+  if (iframe.requestFullscreen) iframe.requestFullscreen();
+  else if (iframe.webkitRequestFullscreen) iframe.webkitRequestFullscreen();
+  else if (iframe.mozRequestFullScreen) iframe.mozRequestFullScreen();
+  else {
+    // Fallback: open in new tab
+    window.open('/api/publications/{{ pub.id }}/file', '_blank');
+  }
+}
+
+// ── Generic collapsible panel toggle ──────────────────────────────
+function togglePanel(panelId, link) {
+  const panel = document.getElementById(panelId);
+  const isHidden = panel.classList.toggle('d-none');
+  if (link) {
+    const labelKey = isHidden ? 'labelOff' : 'labelOn';
+    link.innerHTML = link.dataset[isHidden ? 'labelOff' : 'labelOn'];
+  }
 }
 
 // ── Script package panel ───────────────────────────────────────────

@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
+from pathlib import Path
 from auth import get_current_user
 from database import db
 from services import file_service

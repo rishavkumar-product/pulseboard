@@ -616,6 +616,55 @@ def do_delete_user(cfg, token, args):
     _delete(f"{cfg['url']}/api/admin/users/{uid}", token)
     return f"✓ User {uid} deleted."
 
+
+def do_resolve_url(cfg, token, args):
+    """
+    Extract a publication ID from a PulseBoard URL and return full metadata.
+    Handles patterns like:
+      http://localhost:8010/publications/6
+      http://localhost:8010/publications/6#comments
+    """
+    import re
+    url = args.get("url", "").strip()
+    match = re.search(r"/publications/(\d+)", url)
+    if not match:
+        return (
+            f"Could not find a publication ID in URL: {url!r}\n"
+            f"Expected a URL like: {cfg['url']}/publications/42"
+        )
+    pid = int(match.group(1))
+    pub = _get(f"{cfg['url']}/api/publications/{pid}", token)
+    scripts = _get(f"{cfg['url']}/api/publications/{pid}/scripts", token)
+    schedule = _get(f"{cfg['url']}/api/publications/{pid}/schedule", token)
+
+    script_lines = []
+    for s in scripts:
+        tag = " [refresh entry]" if s.get("is_primary") else ""
+        script_lines.append(f"    {s['id']:>3}. {s['filename']}{tag}")
+
+    sched_str = "none"
+    if schedule:
+        active = "active" if schedule.get("is_active") else "paused"
+        sched_str = f"{schedule['cron_expression']} UTC ({active})"
+
+    return "\n".join([
+        f"PulseBoard publication resolved from URL: {url}",
+        f"",
+        f"{'ID':<18}: {pub['id']}",
+        f"{'Title':<18}: {pub['title']}",
+        f"{'Description':<18}: {pub.get('description') or '(none)'}",
+        f"{'Author':<18}: {pub.get('author', '?')}",
+        f"{'Forum':<18}: {pub.get('forum_id', '?')}",
+        f"{'File type':<18}: {pub['file_type']}",
+        f"{'Refresh status':<18}: {pub.get('refresh_status', 'idle')}",
+        f"{'Last refreshed':<18}: {pub.get('last_refreshed_at') or 'never'}",
+        f"{'Schedule':<18}: {sched_str}",
+        f"{'Scripts':<18}: {len(scripts)} attached",
+        *([f""] + script_lines if scripts else []),
+        f"",
+        f"You can now use publication_id={pub['id']} with any other PulseBoard tool.",
+    ])
+
 # ── Tool registry ─────────────────────────────────────────────────────────────
 
 TOOLS = {
@@ -1035,6 +1084,22 @@ TOOLS = {
                 "forum": {"type": "string"},
                 "username": {"type": "string", "description": "Identify by username..."},
                 "user_id": {"type": "integer", "description": "...or by numeric user_id"},
+            },
+        },
+    },
+
+    # URL resolution
+    "resolve_url": {
+        "fn": do_resolve_url,
+        "description": (
+            "Resolve a PulseBoard URL (e.g. http://localhost:8010/publications/6) into full publication metadata. "
+            "Use this whenever the user pastes or shares a PulseBoard link — extract the publication ID, "
+            "title, description, scripts, refresh status, and schedule so you can work with it immediately."
+        ),
+        "schema": {
+            "type": "object", "required": ["url"],
+            "properties": {
+                "url": {"type": "string", "description": "A PulseBoard URL containing a publication ID"},
             },
         },
     },
