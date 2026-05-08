@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+{% block title %}{{ pub.title }} — PulseBoard{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+  <ol class="breadcrumb small">
+    <li class="breadcrumb-item"><a href="/forums/{{ pub.forum_slug }}">{{ pub.forum_name }}</a></li>
+    <li class="breadcrumb-item"><a href="/forums/{{ pub.forum_slug }}/{{ pub.topic_slug }}">{{ pub.topic_name }}</a></li>
+    <li class="breadcrumb-item active">{{ pub.title }}</li>
+  </ol>
+</nav>
+
+<div class="row g-4">
+  <!-- Main viewer -->
+  <div class="col-md-8">
+    <div class="d-flex justify-content-between align-items-start mb-2">
+      <div>
+        <h5 class="fw-bold mb-0">{{ pub.title }}</h5>
+        <div class="text-muted small">
+          by {{ pub.author }} &middot; published {{ pub.created_at[:10] }}
+          {% if pub.last_refreshed_at %}&middot; refreshed {{ pub.last_refreshed_at }}{% endif %}
+        </div>
+      </div>
+      <div class="d-flex gap-2">
+        <a href="/api/publications/{{ pub.id }}/file" class="btn btn-sm btn-outline-secondary" download>
+          <i class="bi bi-download"></i> Download
+        </a>
+        {% if user_role == 'admin' or pub.created_by == user.user_id %}
+        <button class="btn btn-sm btn-outline-danger"
+                onclick="deletePub({{ pub.id }}, '{{ pub.forum_slug }}', '{{ pub.topic_slug }}')">
+          <i class="bi bi-trash"></i>
+        </button>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if pub.description %}
+    <p class="text-muted small mb-3">{{ pub.description }}</p>
+    {% endif %}
+
+    {% if pub.file_type == 'html' %}
+    <iframe id="pub-iframe" src="/api/publications/{{ pub.id }}/file" sandbox="allow-scripts allow-same-origin"></iframe>
+    {% else %}
+    <div class="card mb-3">
+      <div class="card-body">
+        <p class="text-muted small mb-2"><i class="bi bi-file-word me-1"></i> Word document — download for full formatting</p>
+        {% if docx_preview %}
+        <pre style="white-space:pre-wrap;font-size:0.82rem;max-height:500px;overflow-y:auto">{{ docx_preview }}</pre>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Refresh panel -->
+    {% if pub.has_script %}
+    <div class="card mt-3">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span class="fw-semibold small"><i class="bi bi-arrow-repeat me-1"></i>Data Refresh</span>
+        <span id="refresh-status-badge" class="status-{{ pub.refresh_status }} fw-semibold small">
+          {{ pub.refresh_status|capitalize }}
+        </span>
+      </div>
+      <div class="card-body py-2">
+        <div class="d-flex gap-2 align-items-center mb-2">
+          <button id="refresh-btn" class="btn btn-sm btn-dark"
+                  onclick="triggerRefresh({{ pub.id }})"
+                  {% if pub.refresh_status == 'running' %}disabled{% endif %}>
+            <i class="bi bi-play-fill"></i> Refresh Now
+          </button>
+          {% if pub.last_refreshed_at %}
+          <span class="text-muted small">Last: {{ pub.last_refreshed_at }}</span>
+          {% endif %}
+        </div>
+        {% if pub.refresh_log %}
+        <details>
+          <summary class="small text-muted" style="cursor:pointer">Show log</summary>
+          <pre id="refresh-log" class="refresh-log mt-2">{{ pub.refresh_log }}</pre>
+        </details>
+        {% else %}
+        <pre id="refresh-log" class="refresh-log d-none"></pre>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Upload script -->
+    {% if user_role == 'admin' or pub.created_by == user.user_id %}
+    <div class="card mt-3">
+      <div class="card-header small fw-semibold"><i class="bi bi-code-slash me-1"></i>
+        {% if pub.has_script %}Replace{% else %}Attach{% endif %} Refresh Script (.py)
+      </div>
+      <div class="card-body py-2">
+        <form id="script-upload-form" class="d-flex gap-2 align-items-center">
+          <input type="file" name="file" accept=".py" class="form-control form-control-sm" id="script-file-input" required>
+          <button type="submit" class="btn btn-sm btn-outline-dark text-nowrap">Upload</button>
+        </form>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Schedule panel -->
+    <div class="card mt-3">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span class="fw-semibold small"><i class="bi bi-clock me-1"></i>Auto-Refresh Schedule</span>
+        {% if schedule %}
+        <span class="badge {% if schedule.is_active %}bg-success{% else %}bg-secondary{% endif %}">
+          {% if schedule.is_active %}Active{% else %}Paused{% endif %}
+        </span>
+        {% endif %}
+      </div>
+      <div class="card-body py-2">
+        {% if schedule %}
+        <div class="mb-2 small"><code>{{ schedule.cron_expression }}</code> (UTC)</div>
+        <div class="d-flex gap-2">
+          {% if schedule.is_active %}
+          <button class="btn btn-sm btn-outline-warning" onclick="toggleSchedule({{ pub.id }}, false)">Pause</button>
+          {% else %}
+          <button class="btn btn-sm btn-outline-success" onclick="toggleSchedule({{ pub.id }}, true)">Resume</button>
+          {% endif %}
+          <button class="btn btn-sm btn-outline-danger" onclick="deleteSchedule({{ pub.id }})">Remove</button>
+        </div>
+        {% else %}
+        <div class="d-flex gap-2 align-items-center">
+          <input type="text" id="cron-input" class="form-control form-control-sm" placeholder="0 9 * * 1 (Mon 9am UTC)" style="max-width:220px">
+          <button class="btn btn-sm btn-dark" onclick="saveSchedule({{ pub.id }})">Set Schedule</button>
+        </div>
+        <div class="form-text small">5-field cron. e.g. <code>0 9 * * 1</code> = Mon 9am UTC</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Comments panel -->
+  <div class="col-md-4">
+    <h6 class="fw-bold mb-3"><i class="bi bi-chat-dots me-1"></i>Comments</h6>
+
+    <div class="mb-3">
+      <textarea id="new-comment" class="form-control form-control-sm" rows="3" placeholder="Add a comment…"></textarea>
+      <button class="btn btn-sm btn-dark mt-2" onclick="postComment({{ pub.id }})">Post</button>
+    </div>
+
+    <div id="comment-list">
+      {% if comment_tree %}
+        {% include "partials/comment_thread.html" %}
+      {% else %}
+      <p class="text-muted small">No comments yet. Be the first!</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+{% if pub.refresh_status == 'running' %}
+startRefreshPoll({{ pub.id }});
+{% endif %}
+
+// Script upload
+document.getElementById('script-upload-form')?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const file = document.getElementById('script-file-input').files[0];
+  if (!file) return;
+  const fd = new FormData();
+  fd.append('file', file);
+  const res = await fetch('/api/publications/{{ pub.id }}/script', { method: 'POST', body: fd });
+  if (res.ok) { alert('Script uploaded!'); window.location.reload(); }
+  else { const d = await res.json(); alert(d.detail || 'Upload failed'); }
+});
+
+async function postComment(pubId) {
+  const body = document.getElementById('new-comment').value.trim();
+  if (!body) return;
+  await fetch(`/api/publications/${pubId}/comments`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({body})
+  });
+  window.location.reload();
+}
+</script>
+{% endblock %}

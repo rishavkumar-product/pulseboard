@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}PulseBoard — My Forums{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h4 class="fw-bold mb-0"><i class="bi bi-grid-3x3-gap me-2 text-warning"></i>My Forums</h4>
+  {% if user.is_admin %}
+  <button class="btn btn-dark btn-sm" data-bs-toggle="modal" data-bs-target="#createForumModal">
+    <i class="bi bi-plus-lg"></i> New Forum
+  </button>
+  {% endif %}
+</div>
+
+{% if forums %}
+<div class="row g-3">
+  {% for f in forums %}
+  <div class="col-md-4">
+    <div class="card pub-card h-100">
+      <div class="card-body">
+        <h6 class="fw-bold">{{ f.display_name }}</h6>
+        <p class="text-muted small mb-3">{{ f.description or "No description" }}</p>
+        <a href="/forums/{{ f.slug }}" class="btn btn-outline-dark btn-sm">
+          <i class="bi bi-arrow-right-circle"></i> Browse
+        </a>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="text-center text-muted py-5">
+  <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+  You haven't been added to any forums yet.<br>
+  Ask a forum admin to add you, or contact a system admin.
+</div>
+{% endif %}
+
+{% if user.is_admin %}
+<div class="modal fade" id="createForumModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold">Create Forum</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label small fw-semibold">Forum Name</label>
+          <input type="text" id="new-forum-name" class="form-control" placeholder="e.g. Spinny Flex Analytics">
+        </div>
+        <div class="mb-3">
+          <label class="form-label small fw-semibold">Description</label>
+          <textarea id="new-forum-desc" class="form-control" rows="2"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-dark" onclick="createForum()">Create</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function createForum() {
+  const name = document.getElementById('new-forum-name').value.trim();
+  const desc = document.getElementById('new-forum-desc').value.trim();
+  if (!name) return;
+  const res = await fetch('/api/forums', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({display_name: name, description: desc})
+  });
+  const data = await res.json();
+  if (res.ok) window.location.href = '/forums/' + data.slug;
+  else alert(data.detail || 'Error creating forum');
+}
+</script>
+{% endblock %}
