@@ -273,21 +273,41 @@ def do_publish_dashboard(cfg, token, args):
         files={"file": (fp.name, fp.read_bytes(), mime)},
     )
     pid = pub["id"]
-    if args.get("script_path"):
-        sp = Path(args["script_path"])
+
+    # Support both single script_path (legacy) and script_paths list
+    script_paths = []
+    if args.get("script_paths"):
+        script_paths = args["script_paths"] if isinstance(args["script_paths"], list) else [args["script_paths"]]
+    elif args.get("script_path"):
+        script_paths = [args["script_path"]]
+
+    uploaded_scripts = []
+    for i, sp_str in enumerate(script_paths):
+        sp = Path(sp_str)
         if not sp.exists():
             raise FileNotFoundError(f"Script not found: {sp}")
-        _multipart(
-            "POST", f"{cfg['url']}/api/publications/{pid}/script", token,
-            fields={},
-            files={"file": (sp.name, sp.read_bytes(), "text/x-python")},
-        )
+        boundary = uuid.uuid4().hex
+        body = (
+            f"--{boundary}\r\n"
+            f'Content-Disposition: form-data; name="file"; filename="{sp.name}"\r\n'
+            f"Content-Type: text/x-python\r\n\r\n"
+        ).encode() + sp.read_bytes() + (
+            f"\r\n--{boundary}\r\n"
+            f'Content-Disposition: form-data; name="is_primary"\r\n\r\n'
+            f"{'true' if i == 0 else 'false'}\r\n"
+            f"--{boundary}--\r\n"
+        ).encode()
+        _req("POST", f"{cfg['url']}/api/publications/{pid}/scripts", token,
+             body, f"multipart/form-data; boundary={boundary}")
+        uploaded_scripts.append(sp.name)
+
     view_url = f"{cfg['url']}/publications/{pid}"
+    scripts_summary = ", ".join(uploaded_scripts) if uploaded_scripts else "none"
     return (
-        f"✓ Published: {args['title']}\n"
+        f"[OK] Published: {args['title']}\n"
         f"  Publication ID : {pid}\n"
         f"  File type      : {pub.get('file_type', fp.suffix.lstrip('.'))}\n"
-        f"  Script attached: {'yes' if args.get('script_path') else 'no'}\n"
+        f"  Scripts        : {scripts_summary}\n"
         f"  URL            : {view_url}"
     )
 
@@ -330,7 +350,63 @@ def do_attach_script(cfg, token, args):
         fields={},
         files={"file": (sp.name, sp.read_bytes(), "text/x-python")},
     )
-    return f"✓ Refresh script '{sp.name}' attached to publication {pid}."
+    return f"[OK] Refresh script '{sp.name}' attached to publication {pid}."
+
+
+def do_list_scripts(cfg, token, args):
+    pid = _pub_id(args["publication_id"])
+    scripts = _get(f"{cfg['url']}/api/publications/{pid}/scripts", token)
+    if not scripts:
+        return f"No scripts attached to publication {pid}."
+    lines = [f"Scripts for publication {pid}:", ""]
+    for s in scripts:
+        primary = " [refresh entry]" if s.get("is_primary") else ""
+        lines.append(
+            f"  ID {s['id']:>4} | {s['filename']}{primary}\n"
+            f"           uploaded {s.get('uploaded_at','?')[:10]}"
+            + (f" by {s['uploaded_by_name']}" if s.get('uploaded_by_name') else "")
+        )
+    return "\n".join(lines)
+
+
+def do_upload_script_file(cfg, token, args):
+    pid = _pub_id(args["publication_id"])
+    sp = Path(args["script_path"])
+    if not sp.exists():
+        raise FileNotFoundError(f"Script not found: {sp}")
+    is_primary = str(args.get("is_primary", False)).lower()
+    boundary = uuid.uuid4().hex
+    body = (
+        f"--{boundary}\r\n"
+        f'Content-Disposition: form-data; name="file"; filename="{sp.name}"\r\n'
+        f"Content-Type: text/x-python\r\n\r\n"
+    ).encode() + sp.read_bytes() + (
+        f"\r\n--{boundary}\r\n"
+        f'Content-Disposition: form-data; name="is_primary"\r\n\r\n'
+        f"{is_primary}\r\n"
+        f"--{boundary}--\r\n"
+    ).encode()
+    result = json.loads(_req("POST", f"{cfg['url']}/api/publications/{pid}/scripts",
+                             token, body, f"multipart/form-data; boundary={boundary}"))
+    primary_note = " (set as refresh entry point)" if result.get("is_primary") else ""
+    return f"[OK] '{sp.name}' uploaded to publication {pid}{primary_note}."
+
+
+def do_read_script_file(cfg, token, args):
+    pid = _pub_id(args["publication_id"])
+    sid = int(args["script_id"])
+    source = _get_text(f"{cfg['url']}/api/publications/{pid}/scripts/{sid}/source", token)
+    scripts = _get(f"{cfg['url']}/api/publications/{pid}/scripts", token)
+    s = next((x for x in scripts if x["id"] == sid), None)
+    name = s["filename"] if s else f"script {sid}"
+    return f"[{name} — {len(source)} chars]\n\n```python\n{source}\n```"
+
+
+def do_delete_script_file(cfg, token, args):
+    pid = _pub_id(args["publication_id"])
+    sid = int(args["script_id"])
+    _delete(f"{cfg['url']}/api/publications/{pid}/scripts/{sid}", token)
+    return f"[OK] Script {sid} deleted from publication {pid}."
 
 # — Refresh —
 
@@ -619,7 +695,9 @@ TOOLS = {
         "fn": do_publish_dashboard,
         "description": (
             "Upload a new HTML or DOCX publication to a forum topic. "
-            "Optionally attach a Python refresh script. Returns the publication URL."
+            "Optionally attach one or more Python script files as a package. "
+            "By default, include all .py files the dashboard depends on — the first is the refresh entry point. "
+            "Returns the publication URL."
         ),
         "schema": {
             "type": "object", "required": ["forum", "topic", "title", "file_path"],
@@ -629,7 +707,11 @@ TOOLS = {
                 "title": {"type": "string", "description": "Publication title"},
                 "description": {"type": "string", "description": "Optional description"},
                 "file_path": {"type": "string", "description": "Absolute path to the .html or .docx file"},
-                "script_path": {"type": "string", "description": "Optional absolute path to a Python refresh script"},
+                "script_paths": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "List of absolute paths to .py files. First = refresh entry point, rest = supporting helpers.",
+                },
             },
         },
     },
@@ -672,7 +754,7 @@ TOOLS = {
     "attach_script": {
         "fn": do_attach_script,
         "description": (
-            "Attach or replace the Python refresh script on an existing publication. "
+            "Attach or replace the primary Python refresh script on an existing publication. "
             "The script must write output to os.environ['RS_OUTPUT_PATH']."
         ),
         "schema": {
@@ -680,6 +762,52 @@ TOOLS = {
             "properties": {
                 "publication_id": {"type": "integer"},
                 "script_path": {"type": "string", "description": "Absolute path to the .py script"},
+            },
+        },
+    },
+    "list_scripts": {
+        "fn": do_list_scripts,
+        "description": "List all script files in a publication's script package (IDs, filenames, primary flag).",
+        "schema": {
+            "type": "object", "required": ["publication_id"],
+            "properties": {"publication_id": {"type": "integer"}},
+        },
+    },
+    "upload_script_file": {
+        "fn": do_upload_script_file,
+        "description": (
+            "Upload a single .py script file into a publication's script package. "
+            "Set is_primary=true to make it the refresh entry point. "
+            "By default, upload all scripts that the dashboard depends on (main script + helpers)."
+        ),
+        "schema": {
+            "type": "object", "required": ["publication_id", "script_path"],
+            "properties": {
+                "publication_id": {"type": "integer"},
+                "script_path": {"type": "string", "description": "Absolute path to the .py file"},
+                "is_primary": {"type": "boolean", "description": "Set as refresh entry point (default: false, auto-true for first upload)"},
+            },
+        },
+    },
+    "read_script_file": {
+        "fn": do_read_script_file,
+        "description": "Read the source code of a specific script file by its ID (use list_scripts to get IDs).",
+        "schema": {
+            "type": "object", "required": ["publication_id", "script_id"],
+            "properties": {
+                "publication_id": {"type": "integer"},
+                "script_id": {"type": "integer", "description": "Script ID from list_scripts"},
+            },
+        },
+    },
+    "delete_script_file": {
+        "fn": do_delete_script_file,
+        "description": "Remove a specific script file from a publication's package. If it was the primary, the next script becomes primary.",
+        "schema": {
+            "type": "object", "required": ["publication_id", "script_id"],
+            "properties": {
+                "publication_id": {"type": "integer"},
+                "script_id": {"type": "integer"},
             },
         },
     },

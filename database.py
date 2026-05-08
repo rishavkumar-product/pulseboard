@@ -100,6 +100,17 @@ def init_db():
             created_by INTEGER REFERENCES users(id),
             created_at TEXT DEFAULT (datetime('now'))
         );
+
+        CREATE TABLE IF NOT EXISTS publication_scripts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            publication_id INTEGER NOT NULL REFERENCES publications(id) ON DELETE CASCADE,
+            filename TEXT NOT NULL,
+            file_path TEXT NOT NULL,
+            is_primary INTEGER DEFAULT 0,
+            uploaded_by INTEGER REFERENCES users(id),
+            uploaded_at TEXT DEFAULT (datetime('now')),
+            UNIQUE (publication_id, filename)
+        );
         """)
 
         row = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]

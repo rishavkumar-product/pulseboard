@@ -20,10 +20,19 @@
           {% if pub.last_refreshed_at %}&middot; refreshed {{ pub.last_refreshed_at }}{% endif %}
         </div>
       </div>
-      <div class="d-flex gap-2">
+      <div class="d-flex gap-2 align-items-center">
         <a href="/api/publications/{{ pub.id }}/file?download=1" class="btn btn-sm btn-outline-secondary" download>
           <i class="bi bi-download"></i> Download
         </a>
+        <!-- Package / Scripts CTA -->
+        <button class="btn btn-sm btn-outline-secondary position-relative"
+                onclick="toggleScriptsPanel()" id="scripts-btn" title="Script package">
+          <i class="bi bi-box-seam"></i>
+          {% if scripts %}
+          <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-dark"
+                style="font-size:0.55rem;min-width:1rem">{{ scripts|length }}</span>
+          {% endif %}
+        </button>
         {% if user_role == 'admin' or pub.created_by == user.user_id %}
         <button class="btn btn-sm btn-outline-danger"
                 onclick="deletePub({{ pub.id }}, '{{ pub.forum_slug }}', '{{ pub.topic_slug }}')">
@@ -36,6 +45,67 @@
     {% if pub.description %}
     <p class="text-muted small mb-3">{{ pub.description }}</p>
     {% endif %}
+
+    <!-- ── Script Package Panel ──────────────────────────────────── -->
+    <div id="scripts-panel" class="card mb-3 d-none">
+      <div class="card-header d-flex justify-content-between align-items-center py-2">
+        <span class="small fw-semibold"><i class="bi bi-box-seam me-1"></i>Script Package</span>
+        <label class="btn btn-sm btn-outline-dark py-0 px-2 mb-0" style="cursor:pointer" title="Add scripts">
+          <i class="bi bi-plus"></i> Add scripts
+          <input type="file" id="add-script-input" accept=".py" multiple class="d-none"
+                 onchange="uploadScriptFiles({{ pub.id }}, this.files)">
+        </label>
+      </div>
+      <ul class="list-group list-group-flush" id="scripts-list">
+        {% if scripts %}
+        {% for s in scripts %}
+        <li class="list-group-item d-flex justify-content-between align-items-center py-2 px-3">
+          <div>
+            <i class="bi bi-filetype-py text-warning me-1"></i>
+            <span class="small fw-semibold">{{ s.filename }}</span>
+            {% if s.is_primary %}
+            <span class="badge bg-dark ms-1" style="font-size:0.58rem">refresh entry</span>
+            {% endif %}
+            <div class="text-muted" style="font-size:0.7rem">
+              {{ s.uploaded_at[:10] }}{% if s.uploaded_by_name %} &middot; {{ s.uploaded_by_name }}{% endif %}
+            </div>
+          </div>
+          <div class="d-flex gap-1">
+            <button class="btn btn-sm btn-outline-secondary py-0 px-2"
+                    onclick="viewScriptSource({{ pub.id }}, {{ s.id }}, '{{ s.filename }}')"
+                    title="View source"><i class="bi bi-code-slash"></i></button>
+            {% if user_role == 'admin' or pub.created_by == user.user_id %}
+            <button class="btn btn-sm btn-outline-danger py-0 px-2"
+                    onclick="deleteScriptFile({{ pub.id }}, {{ s.id }}, '{{ s.filename }}')"
+                    title="Delete"><i class="bi bi-trash"></i></button>
+            {% endif %}
+          </div>
+        </li>
+        {% endfor %}
+        {% else %}
+        <li class="list-group-item text-muted small py-2 px-3" id="no-scripts-msg">
+          No scripts attached. Click <strong>+ Add scripts</strong> to upload .py files.
+        </li>
+        {% endif %}
+      </ul>
+    </div>
+
+    <!-- Source viewer modal -->
+    <div class="modal fade" id="scriptSourceModal" tabindex="-1">
+      <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header py-2">
+            <h6 class="modal-title fw-bold mb-0" id="scriptSourceTitle">Script</h6>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body p-0">
+            <pre id="scriptSourceCode"
+                 style="margin:0;padding:1rem;font-size:0.78rem;background:#1e1e1e;color:#d4d4d4;border-radius:0 0 8px 8px;min-height:200px;overflow-x:auto"></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- ── /Script Package Panel ──────────────────────────────────── -->
 
     {% if pub.file_type == 'html' %}
     <iframe id="pub-iframe" src="/api/publications/{{ pub.id }}/file" sandbox="allow-scripts allow-same-origin"></iframe>
@@ -175,6 +245,38 @@ async function postComment(pubId) {
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({body})
   });
+  window.location.reload();
+}
+
+// ── Script package panel ───────────────────────────────────────────
+function toggleScriptsPanel() {
+  document.getElementById('scripts-panel').classList.toggle('d-none');
+}
+
+async function uploadScriptFiles(pubId, files) {
+  if (!files.length) return;
+  const btn = document.querySelector('#scripts-panel label.btn');
+  if (btn) btn.textContent = 'Uploading…';
+  for (let i = 0; i < files.length; i++) {
+    const fd = new FormData();
+    fd.append('file', files[i]);
+    fd.append('is_primary', 'false');
+    await fetch(`/api/publications/${pubId}/scripts`, { method: 'POST', body: fd });
+  }
+  window.location.reload();
+}
+
+async function viewScriptSource(pubId, scriptId, filename) {
+  document.getElementById('scriptSourceTitle').textContent = filename;
+  document.getElementById('scriptSourceCode').textContent = 'Loading…';
+  new bootstrap.Modal(document.getElementById('scriptSourceModal')).show();
+  const res = await fetch(`/api/publications/${pubId}/scripts/${scriptId}/source`);
+  document.getElementById('scriptSourceCode').textContent = await res.text();
+}
+
+async function deleteScriptFile(pubId, scriptId, filename) {
+  if (!confirm(`Delete '${filename}'?`)) return;
+  await fetch(`/api/publications/${pubId}/scripts/${scriptId}`, { method: 'DELETE' });
   window.location.reload();
 }
 </script>

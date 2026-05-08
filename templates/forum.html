@@ -126,6 +126,14 @@
                 <label class="form-label small fw-semibold">File <span class="text-muted">(.html or .docx)</span></label>
                 <input type="file" name="file" id="upload-file" class="form-control" accept=".html,.htm,.docx" required>
               </div>
+              <div class="mb-3">
+                <label class="form-label small fw-semibold">
+                  <i class="bi bi-box-seam me-1"></i>Scripts
+                  <span class="text-muted fw-normal">(optional — .py files that regenerate this dashboard)</span>
+                </label>
+                <input type="file" id="upload-scripts" class="form-control" accept=".py" multiple>
+                <div class="form-text">First file will be the refresh entry point. Add as many supporting files as needed.</div>
+              </div>
               <div id="upload-error" class="text-danger small d-none"></div>
             </div>
             <div class="modal-footer">
@@ -205,6 +213,14 @@ document.getElementById('upload-form').addEventListener('submit', async function
     });
     const data = await res.json();
     if (res.ok) {
+      // Upload any attached scripts
+      const scriptFiles = document.getElementById('upload-scripts').files;
+      for (let i = 0; i < scriptFiles.length; i++) {
+        const sf = new FormData();
+        sf.append('file', scriptFiles[i]);
+        sf.append('is_primary', i === 0 ? 'true' : 'false');
+        await fetch('/api/publications/' + data.id + '/scripts', { method: 'POST', body: sf });
+      }
       window.location.href = '/publications/' + data.id;
     } else {
       errEl.textContent = data.detail || 'Upload failed. Please try again.';

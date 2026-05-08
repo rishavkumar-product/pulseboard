@@ -142,6 +142,13 @@ def publication_page(pub_id: int, request: Request, user=Depends(get_current_use
 
         schedule = conn.execute("SELECT * FROM schedules WHERE publication_id=?", (pub_id,)).fetchone()
 
+        scripts = conn.execute(
+            "SELECT ps.*, u.username as uploaded_by_name FROM publication_scripts ps "
+            "LEFT JOIN users u ON u.id=ps.uploaded_by "
+            "WHERE ps.publication_id=? ORDER BY ps.is_primary DESC, ps.uploaded_at ASC",
+            (pub_id,)
+        ).fetchall()
+
         docx_preview = None
         if pub["file_type"] == "docx":
             try:
@@ -166,6 +173,7 @@ def publication_page(pub_id: int, request: Request, user=Depends(get_current_use
         "docx_preview": docx_preview,
         "user_role": user_role,
         "active_forum_slug": pub["forum_slug"],
+        "scripts": [dict(s) for s in scripts],
     }))
 
 

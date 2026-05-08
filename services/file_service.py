@@ -36,6 +36,13 @@ async def save_script(pub_id: int, file: UploadFile) -> str:
     return str(dest)
 
 
+def save_named_script(pub_id: int, filename: str, content: bytes) -> str:
+    """Save a script file with its original filename (sync, no UploadFile)."""
+    dest = script_dir(pub_id) / filename
+    dest.write_bytes(content)
+    return str(dest)
+
+
 def backup_output(pub_id: int):
     d = pub_dir(pub_id)
     for ext in ("html", "docx"):
