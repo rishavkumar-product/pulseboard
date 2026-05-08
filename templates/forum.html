@@ -4,56 +4,70 @@
 <div class="row g-0">
 
   <!-- Sidebar -->
-  <div class="col-md-2 sidebar pe-3">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-      <span class="fw-bold small text-uppercase text-muted">Topics</span>
-      <button class="btn btn-sm btn-outline-secondary py-0 px-1" data-bs-toggle="modal" data-bs-target="#newTopicModal" title="New topic">
-        <i class="bi bi-plus"></i>
+  <div class="col-md-2 sidebar pe-3" style="min-width:160px;max-width:200px">
+
+    <!-- Topics heading + inline + button -->
+    <div class="d-flex align-items-center justify-content-between mb-2">
+      <span class="text-uppercase text-muted" style="font-size:0.7rem;font-weight:700;letter-spacing:0.08em">Topics</span>
+      <button class="btn btn-link p-0 text-muted" data-bs-toggle="modal" data-bs-target="#newTopicModal"
+              title="New topic" style="font-size:1rem;line-height:1">
+        <i class="bi bi-plus-circle"></i>
       </button>
     </div>
-    <nav class="nav flex-column gap-1">
+
+    <!-- Topic list with pub counts -->
+    <nav class="nav flex-column" style="gap:2px">
       {% for t in topics %}
-      <a class="nav-link {% if active_topic and active_topic.id == t.id %}active{% endif %}"
-         href="/forums/{{ forum.slug }}/{{ t.slug }}">
-        <i class="bi bi-hash me-1"></i>{{ t.display_name }}
+      {% set is_active = active_topic and active_topic.id == t.id %}
+      <a class="nav-link d-flex justify-content-between align-items-center px-2 py-1 rounded
+                 {% if is_active %}fw-semibold text-dark bg-light{% else %}text-secondary{% endif %}"
+         href="/forums/{{ forum.slug }}/{{ t.slug }}"
+         style="font-size:0.83rem;{% if is_active %}border-left:3px solid #212529;{% else %}border-left:3px solid transparent;{% endif %}">
+        <span><i class="bi bi-hash me-1" style="font-size:0.75rem;opacity:0.5"></i>{{ t.display_name }}</span>
+        {% if t.pub_count > 0 %}
+        <span class="text-muted" style="font-size:0.68rem">{{ t.pub_count }}</span>
+        {% endif %}
       </a>
       {% else %}
       <p class="text-muted small px-2">No topics yet</p>
       {% endfor %}
     </nav>
 
+    <!-- Members — demoted, collapsible -->
     {% if user_role == 'admin' or user.is_admin %}
-    <hr>
-    <a href="#" class="small text-muted text-decoration-none d-flex justify-content-between align-items-center"
-       onclick="event.preventDefault(); document.getElementById('members-panel').classList.toggle('d-none')">
-      <span class="fw-semibold text-uppercase" style="letter-spacing:0.05em">Members</span>
-      <span class="badge bg-secondary rounded-pill" style="font-size:0.6rem">{{ members|length }}</span>
-    </a>
-    <div id="members-panel" class="d-none mt-2">
-      {% for m in members %}
-      <div class="d-flex justify-content-between align-items-center mb-1 px-1">
-        <span class="small">{{ m.username }} <span class="badge bg-secondary" style="font-size:0.65rem">{{ m.role }}</span></span>
-        {% if user.is_admin or user_role == 'admin' %}
-        <button class="btn btn-sm p-0 text-danger" onclick="removeMember({{ forum.id }}, {{ m.user_id }})" title="Remove">
-          <i class="bi bi-x"></i>
-        </button>
-        {% endif %}
-      </div>
-      {% endfor %}
-      <div class="mt-2">
-        <input type="text" id="add-member-username" class="form-control form-control-sm mb-1" placeholder="Username">
-        <select id="add-member-role" class="form-select form-select-sm mb-1">
-          <option value="member">Member</option>
-          <option value="admin">Admin</option>
-        </select>
-        <button class="btn btn-sm btn-outline-dark w-100" onclick="addMember({{ forum.id }})">Add Member</button>
+    <div class="mt-4">
+      <a href="#" class="text-decoration-none d-flex align-items-center gap-1"
+         onclick="event.preventDefault(); document.getElementById('members-panel').classList.toggle('d-none')"
+         style="font-size:0.68rem;color:#adb5bd;font-weight:600;letter-spacing:0.07em;text-transform:uppercase">
+        <i class="bi bi-people"></i> Members
+        <span class="badge bg-secondary rounded-pill ms-1" style="font-size:0.55rem">{{ members|length }}</span>
+      </a>
+      <div id="members-panel" class="d-none mt-2">
+        {% for m in members %}
+        <div class="d-flex justify-content-between align-items-center mb-1 px-1">
+          <span class="small">{{ m.username }}
+            <span class="badge bg-secondary" style="font-size:0.6rem">{{ m.role }}</span>
+          </span>
+          <button class="btn btn-sm p-0 text-danger" onclick="removeMember({{ forum.id }}, {{ m.user_id }})" title="Remove">
+            <i class="bi bi-x"></i>
+          </button>
+        </div>
+        {% endfor %}
+        <div class="mt-2">
+          <input type="text" id="add-member-username" class="form-control form-control-sm mb-1" placeholder="Username">
+          <select id="add-member-role" class="form-select form-select-sm mb-1">
+            <option value="member">Member</option>
+            <option value="admin">Admin</option>
+          </select>
+          <button class="btn btn-sm btn-outline-dark w-100" onclick="addMember({{ forum.id }})">Add Member</button>
+        </div>
       </div>
     </div>
     {% endif %}
   </div>
 
   <!-- Main content -->
-  <div class="col-md-10 ps-4">
+  <div class="col ps-4">
     {% if active_topic %}
     <div class="d-flex justify-content-between align-items-center mb-3">
       <div>

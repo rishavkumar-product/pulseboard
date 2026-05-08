@@ -78,7 +78,9 @@ def forum_topic_page(forum_slug: str, topic_slug: str, request: Request, user=De
             user_role = "admin"
 
         topics = conn.execute(
-            "SELECT t.*, u.username as creator FROM topics t LEFT JOIN users u ON u.id=t.created_by "
+            "SELECT t.*, u.username as creator, "
+            "(SELECT COUNT(*) FROM publications p WHERE p.topic_id=t.id) as pub_count "
+            "FROM topics t LEFT JOIN users u ON u.id=t.created_by "
             "WHERE t.forum_id=? ORDER BY t.display_name", (forum["id"],)
         ).fetchall()
 
@@ -94,6 +96,11 @@ def forum_topic_page(forum_slug: str, topic_slug: str, request: Request, user=De
                     "LEFT JOIN users u ON u.id=p.created_by "
                     "WHERE p.topic_id=? ORDER BY p.updated_at DESC", (active_topic["id"],)
                 ).fetchall()
+        elif topics:
+            # Auto-redirect to first topic instead of showing blank state
+            first = topics[0]
+            from fastapi.responses import RedirectResponse as RR
+            return RR(f"/forums/{forum_slug}/{first['slug']}")
 
         members = conn.execute(
             "SELECT fm.*, u.username FROM forum_members fm JOIN users u ON u.id=fm.user_id "
