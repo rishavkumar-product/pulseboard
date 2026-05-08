@@ -20,13 +20,6 @@
   </button>
   <div class="collapse navbar-collapse" id="navMain">
     <ul class="navbar-nav me-auto">
-      {% for f in user_forums %}
-      <li class="nav-item">
-        <a class="nav-link {% if active_forum_slug == f.slug %}active{% endif %}" href="/forums/{{ f.slug }}">
-          {{ f.display_name }}
-        </a>
-      </li>
-      {% endfor %}
     </ul>
     <ul class="navbar-nav">
       {% if user.is_admin %}

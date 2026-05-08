@@ -14,15 +14,16 @@
 <div class="row g-3">
   {% for f in forums %}
   <div class="col-md-4">
-    <div class="card pub-card h-100">
-      <div class="card-body">
-        <h6 class="fw-bold">{{ f.display_name }}</h6>
-        <p class="text-muted small mb-3">{{ f.description or "No description" }}</p>
-        <a href="/forums/{{ f.slug }}" class="btn btn-outline-dark btn-sm">
-          <i class="bi bi-arrow-right-circle"></i> Browse
-        </a>
+    <a href="/forums/{{ f.slug }}" class="text-decoration-none">
+      <div class="card pub-card h-100" style="cursor:pointer;transition:box-shadow 0.15s,transform 0.15s"
+           onmouseover="this.style.boxShadow='0 4px 16px rgba(0,0,0,0.10)';this.style.transform='translateY(-2px)'"
+           onmouseout="this.style.boxShadow='';this.style.transform=''">
+        <div class="card-body">
+          <h6 class="fw-bold text-dark">{{ f.display_name }}</h6>
+          <p class="text-muted small mb-0">{{ f.description or "No description" }}</p>
+        </div>
       </div>
-    </div>
+    </a>
   </div>
   {% endfor %}
 </div>
