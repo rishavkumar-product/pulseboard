@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "pulseboard": {
+      "command": "python",
+      "args": ["C:/Users/Rishav Kumar/Desktop/RecursiveSeal/pb_mcp.py"],
+      "env": {
+        "PULSEBOARD_URL": "http://localhost:8010",
+        "PULSEBOARD_USERNAME": "admin",
+        "PULSEBOARD_PASSWORD": "admin123"
+      }
+    }
+  }
+}

@@ -112,7 +112,7 @@ def delete_publication(pub_id: int, user=Depends(get_current_user)):
 
 
 @router.get("/publications/{pub_id}/file")
-def get_file(pub_id: int, user=Depends(get_current_user)):
+def get_file(pub_id: int, download: bool = False, user=Depends(get_current_user)):
     with db() as conn:
         pub = conn.execute("SELECT * FROM publications WHERE id=?", (pub_id,)).fetchone()
         if not pub:
@@ -120,7 +120,7 @@ def get_file(pub_id: int, user=Depends(get_current_user)):
         _assert_member(pub["forum_id"], user)
     ext = pub["file_type"]
     filename = f"{pub['title'].replace(' ', '_')}.{ext}"
-    return file_service.stream_file(pub["file_path"], filename)
+    return file_service.stream_file(pub["file_path"], filename, force_download=download)
 
 
 @router.post("/publications/{pub_id}/script")
@@ -142,3 +142,70 @@ async def upload_script(
             (script_path, pub_id)
         )
     return {"ok": True, "script_path": script_path}
+
+
+@router.get("/publications/{pub_id}")
+def get_publication(pub_id: int, user=Depends(get_current_user)):
+    """Return full metadata for a single publication."""
+    with db() as conn:
+        pub = conn.execute(
+            "SELECT p.*, u.username as author FROM publications p "
+            "LEFT JOIN users u ON u.id=p.created_by WHERE p.id=?", (pub_id,)
+        ).fetchone()
+        if not pub:
+            raise HTTPException(404)
+        _assert_member(pub["forum_id"], user)
+    return dict(pub)
+
+
+@router.get("/publications/{pub_id}/script/source")
+def get_script_source(pub_id: int, user=Depends(get_current_user)):
+    """Return the Python refresh script source as plain text (for AI agents to read/analyze)."""
+    from fastapi.responses import PlainTextResponse
+    import os
+    with db() as conn:
+        pub = conn.execute("SELECT * FROM publications WHERE id=?", (pub_id,)).fetchone()
+        if not pub:
+            raise HTTPException(404)
+        _assert_member(pub["forum_id"], user)
+    if not pub["has_script"] or not pub["script_path"]:
+        raise HTTPException(404, "No refresh script attached")
+    if not os.path.exists(pub["script_path"]):
+        raise HTTPException(404, "Script file missing on disk")
+    with open(pub["script_path"], "r", encoding="utf-8") as f:
+        source = f.read()
+    return PlainTextResponse(source)
+
+
+@router.post("/publications/{pub_id}/file")
+async def replace_file(
+    pub_id: int,
+    file: UploadFile = File(...),
+    user=Depends(get_current_user),
+):
+    """Replace the content file of an existing publication (re-publish with updated dashboard)."""
+    with db() as conn:
+        pub = conn.execute("SELECT * FROM publications WHERE id=?", (pub_id,)).fetchone()
+        if not pub:
+            raise HTTPException(404)
+        _assert_member(pub["forum_id"], user)
+        if not user.get("is_admin") and pub["created_by"] != user["user_id"]:
+            row = conn.execute(
+                "SELECT role FROM forum_members WHERE forum_id=? AND user_id=?",
+                (pub["forum_id"], user["user_id"])
+            ).fetchone()
+            if not row or row["role"] != "admin":
+                raise HTTPException(403)
+
+    file_service.backup_output(pub_id)
+    try:
+        file_path, file_type = await file_service.save_upload(pub_id, file)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+    with db() as conn:
+        conn.execute(
+            "UPDATE publications SET file_path=?, file_type=?, updated_at=? WHERE id=?",
+            (file_path, file_type, _now(), pub_id)
+        )
+    return {"ok": True, "file_type": file_type}

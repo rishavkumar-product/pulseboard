@@ -21,7 +21,7 @@
         </div>
       </div>
       <div class="d-flex gap-2">
-        <a href="/api/publications/{{ pub.id }}/file" class="btn btn-sm btn-outline-secondary" download>
+        <a href="/api/publications/{{ pub.id }}/file?download=1" class="btn btn-sm btn-outline-secondary" download>
           <i class="bi bi-download"></i> Download
         </a>
         {% if user_role == 'admin' or pub.created_by == user.user_id %}

@@ -1,10 +1,25 @@
+# Environment & secrets
 .env
+
+# Database
+*.db
+*.db-shm
+*.db-wal
+
+# Runtime storage (uploaded files, scripts)
 storage/
-pulseboard.db
+
+# Python
 __pycache__/
-*.pyc
+*.py[cod]
 *.pyo
 .venv/
 venv/
 *.egg-info/
+
+# OS
 .DS_Store
+Thumbs.db
+
+# Logs
+*.log

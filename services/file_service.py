@@ -56,8 +56,13 @@ def get_output_path(pub_id: int, file_type: str) -> Path:
     return pub_dir(pub_id) / f"output.{file_type}"
 
 
-def stream_file(file_path: str, filename: str) -> FileResponse:
-    return FileResponse(file_path, filename=filename)
+def stream_file(file_path: str, filename: str, force_download: bool = False) -> FileResponse:
+    if force_download:
+        # Content-Disposition: attachment → browser downloads the file
+        return FileResponse(file_path, filename=filename)
+    else:
+        # No Content-Disposition → browser displays inline (needed for iframe rendering)
+        return FileResponse(file_path)
 
 
 def delete_pub_files(pub_id: int):

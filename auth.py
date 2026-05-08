@@ -21,6 +21,17 @@ def decode_token(token: str) -> dict:
     return jwt.decode(token, settings.secret_key, algorithms=["HS256"])
 
 def get_current_user(request: Request):
+    # Accept Bearer token (API/MCP clients) or HttpOnly cookie (browser)
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.startswith("Bearer "):
+        token = auth_header[7:]
+        if not token:
+            raise HTTPException(401, "Missing bearer token")
+        try:
+            return decode_token(token)
+        except JWTError:
+            raise HTTPException(401, "Invalid or expired token")
+
     token = request.cookies.get("rs_token")
     if not token:
         raise HTTPException(303, headers={"Location": "/login"})

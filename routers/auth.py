@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Request, Form
+from fastapi import APIRouter, Request, Form, HTTPException
 from fastapi.responses import RedirectResponse, HTMLResponse
 from fastapi.templating import Jinja2Templates
 import sqlite3
@@ -52,3 +52,13 @@ def do_logout():
     resp = RedirectResponse("/login", status_code=303)
     resp.delete_cookie("rs_token")
     return resp
+
+@router.post("/api/token")
+def get_token(username: str = Form(...), password: str = Form(...)):
+    """Issue a Bearer token for API/MCP clients (pb_push.py, pb_mcp.py)."""
+    with db() as conn:
+        row = conn.execute("SELECT * FROM users WHERE username=?", (username,)).fetchone()
+    if not row or not verify_password(password, row["password_hash"]):
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    token = create_token(row["id"], row["username"], bool(row["is_admin"]))
+    return {"access_token": token, "token_type": "bearer"}

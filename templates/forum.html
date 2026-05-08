@@ -84,7 +84,7 @@
             <a href="/publications/{{ p.id }}" class="btn btn-sm btn-outline-dark">
               <i class="bi bi-eye"></i> View
             </a>
-            <a href="/api/publications/{{ p.id }}/file" class="btn btn-sm btn-outline-secondary" download>
+            <a href="/api/publications/{{ p.id }}/file?download=1" class="btn btn-sm btn-outline-secondary" download>
               <i class="bi bi-download"></i>
             </a>
             {% if p.refresh_status == 'running' %}
@@ -112,23 +112,28 @@
             <h5 class="modal-title fw-bold">Publish to #{{ active_topic.display_name }}</h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
           </div>
-          <form method="post" action="/api/topics/{{ active_topic.id }}/publications" enctype="multipart/form-data">
+          <form id="upload-form">
             <div class="modal-body">
               <div class="mb-3">
                 <label class="form-label small fw-semibold">Title</label>
-                <input type="text" name="title" class="form-control" required>
+                <input type="text" name="title" id="upload-title" class="form-control" required>
               </div>
               <div class="mb-3">
                 <label class="form-label small fw-semibold">Description <span class="text-muted">(optional)</span></label>
-                <textarea name="description" class="form-control" rows="2"></textarea>
+                <textarea name="description" id="upload-desc" class="form-control" rows="2"></textarea>
               </div>
               <div class="mb-3">
                 <label class="form-label small fw-semibold">File <span class="text-muted">(.html or .docx)</span></label>
-                <input type="file" name="file" class="form-control" accept=".html,.htm,.docx" required>
+                <input type="file" name="file" id="upload-file" class="form-control" accept=".html,.htm,.docx" required>
               </div>
+              <div id="upload-error" class="text-danger small d-none"></div>
             </div>
             <div class="modal-footer">
-              <button type="submit" class="btn btn-dark">Publish</button>
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+              <button type="submit" id="upload-btn" class="btn btn-dark">
+                <span id="upload-spinner" class="spinner-border spinner-border-sm d-none me-1"></span>
+                Publish
+              </button>
             </div>
           </form>
         </div>
@@ -168,4 +173,52 @@
     </div>
   </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+{% if active_topic %}
+<script>
+document.getElementById('upload-form').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const title = document.getElementById('upload-title').value.trim();
+  const desc  = document.getElementById('upload-desc').value.trim();
+  const file  = document.getElementById('upload-file').files[0];
+  const errEl = document.getElementById('upload-error');
+  const btn   = document.getElementById('upload-btn');
+  const spin  = document.getElementById('upload-spinner');
+
+  if (!title || !file) return;
+
+  errEl.classList.add('d-none');
+  btn.disabled = true;
+  spin.classList.remove('d-none');
+
+  const fd = new FormData();
+  fd.append('title', title);
+  fd.append('description', desc);
+  fd.append('file', file);
+
+  try {
+    const res = await fetch('/api/topics/{{ active_topic.id }}/publications', {
+      method: 'POST',
+      body: fd
+    });
+    const data = await res.json();
+    if (res.ok) {
+      window.location.href = '/publications/' + data.id;
+    } else {
+      errEl.textContent = data.detail || 'Upload failed. Please try again.';
+      errEl.classList.remove('d-none');
+      btn.disabled = false;
+      spin.classList.add('d-none');
+    }
+  } catch (err) {
+    errEl.textContent = 'Network error. Is the server running?';
+    errEl.classList.remove('d-none');
+    btn.disabled = false;
+    spin.classList.add('d-none');
+  }
+});
+</script>
+{% endif %}
 {% endblock %}
