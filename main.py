@@ -6,7 +6,7 @@ from fastapi.responses import HTMLResponse
 
 from database import init_db
 from scheduler import scheduler, restore_schedules
-from routers import auth, pages, forums, topics, publications, comments, refresh, schedules, admin
+from routers import auth, pages, forums, topics, publications, comments, refresh, schedules, admin, mcp_server
 
 
 @asynccontextmanager
@@ -33,6 +33,7 @@ app.include_router(comments.router)
 app.include_router(refresh.router)
 app.include_router(schedules.router)
 app.include_router(admin.router)
+app.include_router(mcp_server.router)
 
 
 @app.exception_handler(403)
