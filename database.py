@@ -101,6 +101,12 @@ def init_db():
             created_at TEXT DEFAULT (datetime('now'))
         );
 
+        CREATE TABLE IF NOT EXISTS user_api_tokens (
+            user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+            token   TEXT NOT NULL,
+            created_at TEXT DEFAULT (datetime('now'))
+        );
+
         CREATE TABLE IF NOT EXISTS publication_scripts (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             publication_id INTEGER NOT NULL REFERENCES publications(id) ON DELETE CASCADE,

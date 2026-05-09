@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+{% block title %}Settings — PulseBoard{% endblock %}
+{% block content %}
+<div style="max-width:680px">
+  <h4 class="fw-bold mb-1"><i class="bi bi-sliders me-2"></i>Settings</h4>
+  <p class="text-muted small mb-4">Manage your account and API access.</p>
+
+  <!-- ── API Token ─────────────────────────────────────────────────────── -->
+  <div class="card mb-4">
+    <div class="card-body">
+      <h6 class="fw-bold mb-1">API Token</h6>
+      <p class="text-muted small mb-3">
+        Use this token to connect Claude Code (or any MCP client) to PulseBoard without entering your password.
+        Valid for <strong>365 days</strong>. Regenerating immediately invalidates the previous token.
+      </p>
+
+      {% if api_token %}
+      <!-- Token exists -->
+      <div class="mb-3">
+        <label class="form-label small fw-semibold text-muted">Your token</label>
+        <div class="input-group">
+          <input type="password" id="token-field" class="form-control font-monospace"
+                 value="{{ api_token }}" readonly style="font-size:0.8rem">
+          <button class="btn btn-outline-secondary" type="button" onclick="toggleToken()" title="Show/hide">
+            <i class="bi bi-eye" id="eye-icon"></i>
+          </button>
+          <button class="btn btn-outline-secondary" type="button" onclick="copyToken()" title="Copy">
+            <i class="bi bi-clipboard" id="copy-icon"></i>
+          </button>
+        </div>
+        <div class="form-text">Generated {{ token_created_at[:10] if token_created_at else '' }}</div>
+      </div>
+
+      <div class="d-flex gap-2">
+        <button class="btn btn-sm btn-dark" onclick="generateToken()">
+          <i class="bi bi-arrow-clockwise me-1"></i>Regenerate
+        </button>
+        <button class="btn btn-sm btn-outline-danger" onclick="revokeToken()">
+          <i class="bi bi-trash me-1"></i>Revoke
+        </button>
+      </div>
+
+      {% else %}
+      <!-- No token yet -->
+      <div class="text-center py-3">
+        <i class="bi bi-key fs-2 text-muted d-block mb-2"></i>
+        <p class="text-muted small mb-3">No API token generated yet.</p>
+        <button class="btn btn-dark" onclick="generateToken()">
+          <i class="bi bi-key me-1"></i>Generate API Token
+        </button>
+      </div>
+      {% endif %}
+
+      <div id="token-error" class="text-danger small mt-2 d-none"></div>
+    </div>
+  </div>
+
+  <!-- ── Claude Code / MCP Setup ───────────────────────────────────────── -->
+  <div class="card mb-4">
+    <div class="card-body">
+      <h6 class="fw-bold mb-1"><i class="bi bi-cpu me-1"></i>Connect Claude Code</h6>
+      <p class="text-muted small mb-3">
+        Add this to your <code>.mcp.json</code> in the project root (or
+        <code>~/.claude/claude_desktop_config.json</code> for global access).
+        Replace <code>&lt;HOST&gt;</code> with the PulseBoard server address.
+      </p>
+
+      <div class="position-relative">
+        <pre id="mcp-config" class="bg-dark text-light rounded p-3"
+             style="font-size:0.78rem;overflow-x:auto">{
+  "mcpServers": {
+    "pulseboard": {
+      "type": "sse",
+      "url": "http://&lt;HOST&gt;:8010/mcp/sse",
+      "headers": {
+        "Authorization": "Bearer {% if api_token %}{{ api_token }}{% else %}&lt;your-token&gt;{% endif %}"
+      }
+    }
+  }
+}</pre>
+        <button class="btn btn-sm btn-outline-light position-absolute"
+                style="top:8px;right:8px" onclick="copyConfig()" title="Copy config">
+          <i class="bi bi-clipboard" id="config-copy-icon"></i>
+        </button>
+      </div>
+
+      <p class="text-muted small mt-2 mb-0">
+        After saving, restart Claude Code. You'll have access to
+        <strong>27 PulseBoard tools</strong> — browse, publish, refresh, comment, and more.
+      </p>
+    </div>
+  </div>
+
+  <!-- ── Account ────────────────────────────────────────────────────────── -->
+  <div class="card">
+    <div class="card-body">
+      <h6 class="fw-bold mb-3">Account</h6>
+      <div class="row g-2 mb-0">
+        <div class="col-sm-3 text-muted small">Username</div>
+        <div class="col-sm-9 small fw-semibold">{{ user.username }}</div>
+        <div class="col-sm-3 text-muted small">Role</div>
+        <div class="col-sm-9 small">
+          {% if user.is_admin %}
+          <span class="badge bg-dark">System admin</span>
+          {% else %}
+          <span class="badge bg-secondary">Member</span>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function generateToken() {
+  const errEl = document.getElementById('token-error');
+  errEl.classList.add('d-none');
+  try {
+    const res = await fetch('/api/me/token', { method: 'POST' });
+    const data = await res.json();
+    if (res.ok) {
+      window.location.reload();
+    } else {
+      errEl.textContent = data.detail || 'Failed to generate token';
+      errEl.classList.remove('d-none');
+    }
+  } catch (e) {
+    errEl.textContent = 'Network error';
+    errEl.classList.remove('d-none');
+  }
+}
+
+async function revokeToken() {
+  if (!confirm('Revoke your API token? Any Claude Code integrations using it will stop working immediately.')) return;
+  const res = await fetch('/api/me/token', { method: 'DELETE' });
+  if (res.ok) window.location.reload();
+}
+
+function toggleToken() {
+  const field = document.getElementById('token-field');
+  const icon  = document.getElementById('eye-icon');
+  if (field.type === 'password') {
+    field.type = 'text';
+    icon.className = 'bi bi-eye-slash';
+  } else {
+    field.type = 'password';
+    icon.className = 'bi bi-eye';
+  }
+}
+
+function copyToken() {
+  const val = document.getElementById('token-field').value;
+  navigator.clipboard.writeText(val).then(() => {
+    const icon = document.getElementById('copy-icon');
+    icon.className = 'bi bi-check2';
+    setTimeout(() => icon.className = 'bi bi-clipboard', 2000);
+  });
+}
+
+function copyConfig() {
+  const text = document.getElementById('mcp-config').innerText;
+  navigator.clipboard.writeText(text).then(() => {
+    const icon = document.getElementById('config-copy-icon');
+    icon.className = 'bi bi-check2';
+    setTimeout(() => icon.className = 'bi bi-clipboard', 2000);
+  });
+}
+</script>
+{% endblock %}

@@ -17,6 +17,15 @@ def create_token(user_id: int, username: str, is_admin: bool) -> str:
         settings.secret_key, algorithm="HS256"
     )
 
+def create_api_token(user_id: int, username: str, is_admin: bool) -> str:
+    """Long-lived token for MCP / API clients. 365-day expiry."""
+    expire = datetime.now(timezone.utc) + timedelta(days=365)
+    return jwt.encode(
+        {"user_id": user_id, "username": username, "is_admin": is_admin,
+         "exp": expire, "type": "api"},
+        settings.secret_key, algorithm="HS256"
+    )
+
 def decode_token(token: str) -> dict:
     return jwt.decode(token, settings.secret_key, algorithms=["HS256"])
 

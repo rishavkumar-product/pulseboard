@@ -191,6 +191,19 @@ def publication_page(pub_id: int, request: Request, user=Depends(get_current_use
     }))
 
 
+@router.get("/settings", response_class=HTMLResponse)
+def settings_page(request: Request, user=Depends(get_current_user)):
+    with db() as conn:
+        token_row = conn.execute(
+            "SELECT token, created_at FROM user_api_tokens WHERE user_id=?",
+            (user["user_id"],)
+        ).fetchone()
+    return templates.TemplateResponse(request, "settings.html", _ctx(user, {
+        "api_token": token_row["token"] if token_row else None,
+        "token_created_at": token_row["created_at"] if token_row else None,
+    }))
+
+
 @router.get("/admin", response_class=HTMLResponse)
 def admin_page(request: Request, user=Depends(get_current_user)):
     if not user.get("is_admin"):
