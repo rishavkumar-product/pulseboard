@@ -38,7 +38,7 @@
             <span><i class="bi bi-file-earmark me-1"></i>{{ f.pub_count or 0 }} publication{{ 's' if (f.pub_count or 0) != 1 else '' }}</span>
             <span><i class="bi bi-people me-1"></i>{{ f.member_count or 0 }} member{{ 's' if (f.member_count or 0) != 1 else '' }}</span>
             {% if f.last_active %}
-            <span class="ms-auto"><i class="bi bi-clock me-1"></i>{{ f.last_active[:10] }}</span>
+            <span class="ms-auto"><i class="bi bi-clock me-1"></i>{{ f.last_active | to_ist_date }}</span>
             {% endif %}
           </div>
         </div>

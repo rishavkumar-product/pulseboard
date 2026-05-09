@@ -1,11 +1,10 @@
 from fastapi import APIRouter, Request, Depends
 from fastapi.responses import HTMLResponse, RedirectResponse
-from fastapi.templating import Jinja2Templates
 from auth import get_current_user
 from database import db
+from templates_config import templates
 
 router = APIRouter()
-templates = Jinja2Templates(directory="templates")
 
 
 def _user_forums(user_id: int, is_admin: bool):

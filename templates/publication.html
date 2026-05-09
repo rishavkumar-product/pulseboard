@@ -23,8 +23,8 @@
           <span id="copy-toast" class="text-success small d-none" style="font-size:0.72rem">Copied!</span>
         </div>
         <div class="text-muted small">
-          by {{ pub.author }} &middot; published {{ pub.created_at[:10] }}
-          {% if pub.last_refreshed_at %}&middot; refreshed {{ pub.last_refreshed_at }}{% endif %}
+          by {{ pub.author }} &middot; published {{ pub.created_at | to_ist_date }}
+          {% if pub.last_refreshed_at %}&middot; refreshed {{ pub.last_refreshed_at | to_ist }}{% endif %}
         </div>
       </div>
       <div class="d-flex gap-2 align-items-center">
@@ -74,7 +74,7 @@
             <span class="badge bg-dark ms-1" style="font-size:0.58rem">refresh entry</span>
             {% endif %}
             <div class="text-muted" style="font-size:0.7rem">
-              {{ s.uploaded_at[:10] }}{% if s.uploaded_by_name %} &middot; {{ s.uploaded_by_name }}{% endif %}
+              {{ s.uploaded_at | to_ist_date }}{% if s.uploaded_by_name %} &middot; {{ s.uploaded_by_name }}{% endif %}
             </div>
           </div>
           <div class="d-flex gap-1">
@@ -149,7 +149,7 @@
             <i class="bi bi-play-fill"></i> Refresh Now
           </button>
           {% if pub.last_refreshed_at %}
-          <span class="text-muted small">Last: {{ pub.last_refreshed_at }}</span>
+          <span class="text-muted small">Last: {{ pub.last_refreshed_at | to_ist }}</span>
           {% endif %}
         </div>
         {% if pub.refresh_log %}

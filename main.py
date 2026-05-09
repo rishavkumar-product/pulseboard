@@ -1,11 +1,11 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
 
 from database import init_db
 from scheduler import scheduler, restore_schedules
+from templates_config import templates
 from routers import auth, pages, forums, topics, publications, comments, refresh, schedules, admin, mcp_server
 
 
@@ -21,8 +21,6 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="PulseBoard", lifespan=lifespan)
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
-
-templates = Jinja2Templates(directory="templates")
 
 app.include_router(auth.router)
 app.include_router(pages.router)

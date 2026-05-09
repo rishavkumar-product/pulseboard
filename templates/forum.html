@@ -97,7 +97,7 @@
             <p class="text-muted small mb-2">{{ p.description or "" }}</p>
             <div class="text-muted" style="font-size:0.75rem">
               by {{ p.author }} &middot;
-              {% if p.last_refreshed_at %}refreshed {{ p.last_refreshed_at }}{% else %}uploaded {{ p.created_at[:10] }}{% endif %}
+              {% if p.last_refreshed_at %}refreshed {{ p.last_refreshed_at | to_ist }}{% else %}uploaded {{ p.created_at | to_ist_date }}{% endif %}
             </div>
           </div>
           <div class="card-footer bg-transparent d-flex gap-2">

@@ -1,12 +1,11 @@
 from fastapi import APIRouter, Request, Form, HTTPException, Depends
 from fastapi.responses import RedirectResponse, HTMLResponse, JSONResponse
-from fastapi.templating import Jinja2Templates
 import sqlite3
 from auth import hash_password, verify_password, create_token, create_api_token, get_current_user
 from database import db
+from templates_config import templates
 
 router = APIRouter()
-templates = Jinja2Templates(directory="templates")
 
 @router.get("/login", response_class=HTMLResponse)
 def login_page(request: Request, error: str = ""):
