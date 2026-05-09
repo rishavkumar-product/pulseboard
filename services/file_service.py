@@ -64,12 +64,14 @@ def get_output_path(pub_id: int, file_type: str) -> Path:
 
 
 def stream_file(file_path: str, filename: str, force_download: bool = False) -> FileResponse:
+    no_cache_headers = {
+        "Cache-Control": "no-store, no-cache, must-revalidate",
+        "Pragma": "no-cache",
+    }
     if force_download:
-        # Content-Disposition: attachment → browser downloads the file
-        return FileResponse(file_path, filename=filename)
+        return FileResponse(file_path, filename=filename, headers=no_cache_headers)
     else:
-        # No Content-Disposition → browser displays inline (needed for iframe rendering)
-        return FileResponse(file_path)
+        return FileResponse(file_path, headers=no_cache_headers)
 
 
 def delete_pub_files(pub_id: int):

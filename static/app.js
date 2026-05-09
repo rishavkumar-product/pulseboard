@@ -17,7 +17,10 @@ async function pollRefreshStatus(pubId) {
     _pollTimer = null;
     if (data.refresh_status === 'success') {
       const iframe = document.getElementById('pub-iframe');
-      if (iframe) iframe.src = iframe.src; // reload
+      if (iframe) {
+        const base = iframe.src.split('?')[0];
+        iframe.src = base + '?t=' + Date.now(); // cache-bust
+      }
     }
   }
 }
