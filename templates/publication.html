@@ -120,7 +120,7 @@
         <i class="bi bi-arrows-fullscreen me-1"></i><span style="font-size:0.75rem">Full screen</span>
       </button>
     </div>
-    <iframe id="pub-iframe" src="/api/publications/{{ pub.id }}/file" sandbox="allow-scripts allow-same-origin"></iframe>
+    <iframe id="pub-iframe" src="/api/publications/{{ pub.id }}/file?v={{ pub.last_refreshed_at or pub.updated_at or pub.created_at }}" sandbox="allow-scripts allow-same-origin"></iframe>
     {% else %}
     <div class="card mb-3">
       <div class="card-body">
