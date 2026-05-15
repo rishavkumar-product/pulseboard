@@ -145,7 +145,7 @@ def attach_script(base_url: str, token: str, pub_id: int, script_path: Path):
 
     body = (
         f"--{boundary}\r\n"
-        f'Content-Disposition: form-data; name="script"; filename="{script_path.name}"\r\n'
+        f'Content-Disposition: form-data; name="file"; filename="{script_path.name}"\r\n'
         f"Content-Type: text/x-python\r\n\r\n"
     ).encode() + script_bytes + f"\r\n--{boundary}--\r\n".encode()
 

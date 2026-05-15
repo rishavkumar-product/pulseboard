@@ -86,7 +86,7 @@
     <div class="row g-3">
       {% for p in publications %}
       <div class="col-md-4 pub-card-wrapper" data-title="{{ p.title|lower }}">
-        <div class="card pub-card h-100">
+        <div class="card pub-card h-100 position-relative">
           <div class="card-body">
             <div class="d-flex justify-content-between align-items-start mb-1">
               <h6 class="fw-bold mb-0">{{ p.title }}</h6>
@@ -101,16 +101,16 @@
             </div>
           </div>
           <div class="card-footer bg-transparent d-flex gap-2">
-            <a href="/publications/{{ p.id }}" class="btn btn-sm btn-outline-dark">
+            <a href="/publications/{{ p.id }}" class="btn btn-sm btn-outline-dark stretched-link">
               <i class="bi bi-eye"></i> View
             </a>
-            <a href="/api/publications/{{ p.id }}/file?download=1" class="btn btn-sm btn-outline-secondary" download>
+            <a href="/api/publications/{{ p.id }}/file?download=1" class="btn btn-sm btn-outline-secondary position-relative" style="z-index:2" download>
               <i class="bi bi-download"></i>
             </a>
             {% if p.refresh_status == 'running' %}
-            <span class="badge bg-warning text-dark align-self-center">Refreshing…</span>
+            <span class="badge bg-warning text-dark align-self-center position-relative" style="z-index:2">Refreshing…</span>
             {% elif p.refresh_status == 'error' %}
-            <span class="badge bg-danger align-self-center">Error</span>
+            <span class="badge bg-danger align-self-center position-relative" style="z-index:2">Error</span>
             {% endif %}
           </div>
         </div>
